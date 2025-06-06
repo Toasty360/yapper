@@ -624,22 +624,33 @@ The tool will automatically detect and count messages per user."></textarea>
         const processChatText = (text) => {
             const users = {};
             let preUser = null;
-            for (var line of text.split("\n")) {
+            const patterns = [
+                // KakaoTalk IOS: "May 31, 2025 at 10:55 AM, Username : Message"
+                /\S+\s\d{1,2},\s+\d{2,4}\s+at\s+\d{1,2}:\d{1,2}.{1}[AP]M,(.*?):.*/,
+                // KakaoTalk Android: "May 31, 2025, 10:55 AM, Username : Message"
+                /\S+\s\d{1,2},\s+\d{2,4}, \d{1,2}:\d{1,2}\s+[AP]M,(.*?):.*/,
+            ];
+
+            for (var line of text.split('\n')) {
                 if (
                     line.endsWith("joined this chatroom.") ||
                     line.endsWith("left this chatroom.")
                 ) {
                     continue;
                 }
-                const match = line.match(/,\s([^:]+?)\s*:/);
+                const match = line.match(patterns[0]) || line.match(patterns[1]);
+
                 if (match) {
-                    const user = line.split(",")?.[2]?.split(":")[0].trim() ?? "System Message";
+                    const user = match[1].trim();
+
                     users[user] = (users[user] || 0) + 1;
+
                     preUser = user;
                 } else if (preUser) {
                     users[preUser] = (users[preUser] || 0) + 1;
                 }
             }
+
             const finalData = {}
             Object.entries(users)
                 .sort((a, b) => b[1] - a[1]).map(([user, count]) => finalData[user] = count)
