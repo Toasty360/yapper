@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yapper Rankings - Who Talks the Most?</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff, #f0f0f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 300;
+        }
+
+        .upload-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .upload-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 2rem;
+            gap: 4px;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 1rem;
+            border: none;
+            background: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+
+        .tab-button.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .tab-button:not(.active) {
+            color: #6b7280;
+        }
+
+        .tab-button:not(.active):hover {
+            background: #e5e7eb;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .upload-area {
+            border: 3px dashed #d1d5db;
+            border-radius: 16px;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #fafafa;
+        }
+
+        .upload-area:hover,
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+            transform: translateY(-2px);
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: #9ca3af;
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-subtext {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .text-area {
+            width: 100%;
+            min-height: 300px;
+            padding: 1.5rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+            background: #fafafa;
+        }
+
+        .text-area:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .analyze-button {
+            width: 100%;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        .analyze-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .analyze-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .results-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: none;
+        }
+
+        .results-section.show {
+            display: block;
+            animation: fadeInUp 0.6s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .results-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .results-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .results-subtitle {
+            color: #6b7280;
+            font-size: 1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            padding: 1.5rem;
+            border-radius: 16px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #6b7280;
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+        }
+
+        .rankings {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .rank-item {
+            display: flex;
+            align-items: center;
+            padding: 1.5rem;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            border: 1px solid #f3f4f6;
+            transition: all 0.3s ease;
+        }
+
+        .rank-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .rank-badge {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.2rem;
+            margin-right: 1.5rem;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .rank-1 {
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+            color: #8b4513;
+        }
+
+        .rank-2 {
+            background: linear-gradient(135deg, #c0c0c0, #e5e5e5);
+            color: #4a5568;
+        }
+
+        .rank-3 {
+            background: linear-gradient(135deg, #cd7f32, #daa520);
+            color: white;
+        }
+
+        .rank-other {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .rank-info {
+            flex: 1;
+        }
+
+        .rank-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+
+        .rank-messages {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .rank-count {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #1f2937;
+            margin-left: 1rem;
+        }
+
+        .percentage-bar {
+            width: 100%;
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 3px;
+            margin-top: 0.5rem;
+            overflow: hidden;
+        }
+
+        .percentage-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 3px;
+            transition: width 1s ease;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
+        }
+
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 1rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+            text-align: center;
+        }
+
+        .success {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #16a34a;
+            padding: 1rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .upload-section,
+            .results-section {
+                padding: 1.5rem;
+                border-radius: 16px;
+            }
+
+            .upload-area {
+                padding: 2rem 1rem;
+            }
+
+            .upload-icon {
+                font-size: 3rem;
+            }
+
+            .rank-item {
+                padding: 1rem;
+            }
+
+            .rank-badge {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+                margin-right: 1rem;
+            }
+
+            .rank-count {
+                font-size: 1.2rem;
+            }
+
+            .tab-button {
+                padding: 0.75rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗣️ Yapper Rankings</h1>
+            <p>Find out who talks the most in your group chats</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-tabs">
+                <button class="tab-button active" onclick="switchTab('file')">📁 Upload File</button>
+                <button class="tab-button" onclick="switchTab('text')">📝 Paste Text</button>
+            </div>
+
+            <div id="file-tab" class="tab-content active">
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">Drop files here or click to browse</div>
+                    <div class="upload-subtext">Supports .txt files and .zip archives</div>
+                </div>
+                <input type="file" id="fileInput" class="file-input" multiple accept=".txt,.zip"
+                    onchange="handleFiles(this.files)">
+            </div>
+
+            <div id="text-tab" class="tab-content">
+                <textarea id="textInput" class="text-area" placeholder="Paste your chat log here...
+
+Example format:
+May 31, 2025 at 10:55 AM, Username : Message content
+May 31, 2025 at 10:56 AM, Another User : Another message
+
+The tool will automatically detect and count messages per user."></textarea>
+                <button class="analyze-button" onclick="analyzeText()">🔍 Analyze Text</button>
+            </div>
+        </div>
+
+        <div id="results" class="results-section">
+            <div class="results-header">
+                <div class="results-title">🏆 Yapper Rankings</div>
+                <div class="results-subtitle">Who dominated the conversation?</div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalMessages">0</div>
+                    <div class="stat-label">Total Messages</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalUsers">0</div>
+                    <div class="stat-label">Active Users</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="topYapper">-</div>
+                    <div class="stat-label">Biggest Yapper</div>
+                </div>
+            </div>
+
+            <div id="rankings" class="rankings"></div>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Processing your chat data...</p>
+        </div>
+    </div>
+
+    <script>
+        let currentData = null;
+
+        function switchTab(tab) {
+            // Update buttons
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tab + '-tab').classList.add('active');
+        }
+
+        // Drag and drop functionality
+        const uploadArea = document.querySelector('.upload-area');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => uploadArea.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('dragover'), false);
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            handleFiles(files);
+        });
+
+        async function handleFiles(files) {
+            if (files.length === 0) return;
+
+            showLoading();
+            clearResults();
+
+            const allUsers = {};
+            let totalFiles = 0;
+            let processedFiles = 0;
+
+            try {
+                for (const file of files) {
+                    if (file.name.endsWith('.zip')) {
+                        const zip = new JSZip();
+                        const zipContent = await zip.loadAsync(file);
+
+                        for (const [fileName, zipFile] of Object.entries(zipContent.files)) {
+                            if (fileName.endsWith('.txt') && !zipFile.dir) {
+                                totalFiles++;
+                                const content = await zipFile.async('text');
+                                const users = processChatText(content);
+                                mergeUsers(allUsers, users);
+                                processedFiles++;
+                            }
+                        }
+                    } else if (file.name.endsWith('.txt')) {
+                        totalFiles++;
+                        const content = await file.text();
+                        const users = processChatText(content);
+                        mergeUsers(allUsers, users);
+                        processedFiles++;
+                    }
+                }
+
+                if (processedFiles === 0) {
+                    showError('No valid chat files found. Please upload .txt files or .zip archives containing .txt files.');
+                    return;
+                }
+
+                displayResults(allUsers);
+                showSuccess(`Successfully processed ${processedFiles} file(s)!`);
+
+            } catch (error) {
+                console.error('Error processing files:', error);
+                showError('Error processing files. Please check the file format and try again.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function analyzeText() {
+            const textInput = document.getElementById('textInput');
+            const text = textInput.value.trim();
+
+            if (!text) {
+                showError('Please enter some chat text to analyze.');
+                return;
+            }
+
+            showLoading();
+            clearResults();
+
+            try {
+                const users = processChatText(text);
+                if (Object.keys(users).length === 0) {
+                    showError('No valid chat messages found. Please check the format.');
+                    return;
+                }
+
+                displayResults(users);
+                showSuccess('Text analyzed successfully!');
+            } catch (error) {
+                console.error('Error processing text:', error);
+                showError('Error processing text. Please check the format and try again.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        const processChatText = (text) => {
+            const users = {};
+            let preUser = null;
+            for (var line of text.split("\n")) {
+                if (
+                    line.endsWith("joined this chatroom.") ||
+                    line.endsWith("left this chatroom.")
+                ) {
+                    continue;
+                }
+                const match = line.match(/,\s([^:]+?)\s*:/);
+                if (match) {
+                    const user = line.split(",")?.[2]?.split(":")[0].trim() ?? "System Message";
+                    users[user] = (users[user] || 0) + 1;
+                    preUser = user;
+                } else if (preUser) {
+                    users[preUser] = (users[preUser] || 0) + 1;
+                }
+            }
+            const finalData = {}
+            Object.entries(users)
+                .sort((a, b) => b[1] - a[1]).map(([user, count]) => finalData[user] = count)
+
+            return finalData;
+        }
+
+        function mergeUsers(target, source) {
+            for (const [user, count] of Object.entries(source)) {
+                target[user] = (target[user] || 0) + count;
+            }
+        }
+
+        function displayResults(users) {
+            currentData = users;
+
+            const totalMessages = Object.values(users).reduce((sum, count) => sum + count, 0);
+            const totalUsers = Object.keys(users).length;
+            const sortedUsers = Object.entries(users).sort((a, b) => b[1] - a[1]);
+            const topYapper = sortedUsers.length > 0 ? sortedUsers[0][0] : '-';
+
+            // Update stats
+            document.getElementById('totalMessages').textContent = totalMessages.toLocaleString();
+            document.getElementById('totalUsers').textContent = totalUsers;
+            document.getElementById('topYapper').textContent = topYapper;
+
+            // Create rankings
+            const rankingsContainer = document.getElementById('rankings');
+            rankingsContainer.innerHTML = '';
+
+            sortedUsers.forEach(([user, count], index) => {
+                const percentage = (count / totalMessages) * 100;
+                const rankItem = document.createElement('div');
+                rankItem.className = 'rank-item';
+
+                let rankClass = 'rank-other';
+                if (index === 0) rankClass = 'rank-1';
+                else if (index === 1) rankClass = 'rank-2';
+                else if (index === 2) rankClass = 'rank-3';
+
+                rankItem.innerHTML = `
+                    <div class="rank-badge ${rankClass}">${index + 1}</div>
+                    <div class="rank-info">
+                        <div class="rank-name">${user}</div>
+                        <div class="rank-messages">${count.toLocaleString()} messages (${percentage.toFixed(1)}%)</div>
+                        <div class="percentage-bar">
+                            <div class="percentage-fill" style="width: ${Math.min(percentage, 100)}%"></div>
+                        </div>
+                    </div>
+                    <div class="rank-count">${count.toLocaleString()}</div>
+                `;
+
+                rankingsContainer.appendChild(rankItem);
+            });
+
+            // Show results
+            document.getElementById('results').classList.add('show');
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function showError(message) {
+            clearMessages();
+            const error = document.createElement('div');
+            error.className = 'error';
+            error.textContent = message;
+            document.querySelector('.upload-section').appendChild(error);
+            setTimeout(() => error.remove(), 5000);
+        }
+
+        function showSuccess(message) {
+            clearMessages();
+            const success = document.createElement('div');
+            success.className = 'success';
+            success.textContent = message;
+            document.querySelector('.upload-section').appendChild(success);
+            setTimeout(() => success.remove(), 3000);
+        }
+
+        function clearMessages() {
+            document.querySelectorAll('.error, .success').forEach(msg => msg.remove());
+        }
+
+        function clearResults() {
+            document.getElementById('results').classList.remove('show');
+        }
+    </script>
+</body>
+
+</html>
